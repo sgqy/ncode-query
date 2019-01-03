@@ -148,8 +148,9 @@ type:
   er  完結済連載小説
   re  連載小説
   ter 短編と完結済連載小説
+
 order:
-  new	新着更新順
+  new           新着更新順
   favnovelcnt   ブックマーク数の多い順
   reviewcnt     レビュー数の多い順
   hyoka         総合ポイントの高い順
@@ -163,7 +164,7 @@ order:
   lengthdesc    小説本文の文字数が多い順
   lengthasc     小説本文の文字数が少ない順
   ncodedesc     新着投稿順
-  old	更新が古い順
+  old           更新が古い順
 '''
 
 def proc_g(t, o):
