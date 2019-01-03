@@ -7,6 +7,47 @@ import colorama
 import datetime
 import dateutil.parser
 
+def get_nocgenre(genre):
+    if genre == 1:
+        return colorama.Fore.YELLOW  + '男性' + colorama.Style.RESET_ALL
+    elif genre == 2:
+        return colorama.Fore.CYAN    + '女性' + colorama.Style.RESET_ALL
+    elif genre == 3:
+        return colorama.Fore.RED     + 'ＢＬ' + colorama.Style.RESET_ALL
+    elif genre == 4:
+        return colorama.Fore.MAGENTA + '成年' + colorama.Style.RESET_ALL
+    else:
+        return '未知'
+
+def get_genre(genre):
+    periods = [
+        (101,  colorama.Fore.RED     + '　　異世界　　　' + colorama.Style.RESET_ALL),
+        (102,  colorama.Fore.RED     + '　　現実世界　　' + colorama.Style.RESET_ALL),
+        (201,  colorama.Fore.GREEN   + 'ハイファンタジー' + colorama.Style.RESET_ALL),
+        (202,  colorama.Fore.GREEN   + 'ローファンタジー' + colorama.Style.RESET_ALL),
+        (301,  colorama.Fore.YELLOW  + '　　純文学　　　' + colorama.Style.RESET_ALL),
+        (302,  colorama.Fore.YELLOW  + 'ヒューマンドラマ' + colorama.Style.RESET_ALL),
+        (303,  colorama.Fore.YELLOW  + '　　　歴史　　　' + colorama.Style.RESET_ALL),
+        (304,  colorama.Fore.YELLOW  + '　　　推理　　　' + colorama.Style.RESET_ALL),
+        (305,  colorama.Fore.YELLOW  + '　　ホラー　　　' + colorama.Style.RESET_ALL),
+        (306,  colorama.Fore.YELLOW  + '　アクション　　' + colorama.Style.RESET_ALL),
+        (307,  colorama.Fore.YELLOW  + '　コメディー　　' + colorama.Style.RESET_ALL),
+        (401,  colorama.Fore.CYAN    + '　ＶＲゲーム　　' + colorama.Style.RESET_ALL),
+        (402,  colorama.Fore.CYAN    + '　　　宇宙　　　' + colorama.Style.RESET_ALL),
+        (403,  colorama.Fore.CYAN    + '　　空想科学　　' + colorama.Style.RESET_ALL),
+        (404,  colorama.Fore.CYAN    + '　　パニック　　' + colorama.Style.RESET_ALL),
+        (9901, colorama.Fore.MAGENTA + '　　　童話　　　' + colorama.Style.RESET_ALL),
+        (9902, colorama.Fore.MAGENTA + '　　　詩　　　　' + colorama.Style.RESET_ALL),
+        (9903, colorama.Fore.MAGENTA + '　　エッセイ　　' + colorama.Style.RESET_ALL),
+        (9904, colorama.Fore.MAGENTA + '　　リプレイ　　' + colorama.Style.RESET_ALL),
+        (9999, colorama.Fore.MAGENTA + '　　その他　　　' + colorama.Style.RESET_ALL),
+        (9801, colorama.Fore.WHITE   + '　ノンジャンル　' + colorama.Style.RESET_ALL),
+    ]
+    for p_val, p_name in periods:
+        if genre == p_val:
+            return p_name
+    return '　　　　　　　　'
+
 def last_update(date_str):
     time = dateutil.parser.parse(date_str)
     delta = datetime.datetime.now(datetime.timezone.utc) - time
@@ -41,19 +82,10 @@ def proc_info(data):
         ncode = ''
         if item.get('nocgenre'):
             ncode = colorama.Fore.YELLOW + '{:7s}'.format(item['ncode'].lower()) + colorama.Style.RESET_ALL
-            if item['nocgenre'] == 1:
-                title = '[' + colorama.Fore.YELLOW  + '男性' + colorama.Style.RESET_ALL + ']'
-            elif item['nocgenre'] == 2:
-                title = '[' + colorama.Fore.CYAN    + '女性' + colorama.Style.RESET_ALL + ']'
-            elif item['nocgenre'] == 3:
-                title = '[' + colorama.Fore.RED    + 'ＢＬ' + colorama.Style.RESET_ALL + ']'
-            elif item['nocgenre'] == 4:
-                title = '[' + colorama.Fore.MAGENTA + '成年' + colorama.Style.RESET_ALL + ']'
-            else:
-                title = '[未知]'
+            title = '[' + get_nocgenre(item['nocgenre']) + ']'
         else:
             ncode = colorama.Fore.CYAN + '{:7s}'.format(item['ncode'].lower()) + colorama.Style.RESET_ALL
-            title = '[' + colorama.Fore.GREEN + '一般' + colorama.Style.RESET_ALL + ']'
+            title = '[' + get_genre(item['genre']) + ']'
 
         # color title if it is single
         short = ''
@@ -64,7 +96,7 @@ def proc_info(data):
         else:
             short = colorama.Fore.RED
 
-        title += ' ' + short + item['title'] + colorama.Style.RESET_ALL
+        title += ' ' + short + colorama.Style.BRIGHT + item['title'] + colorama.Style.RESET_ALL + colorama.Style.DIM + ' <' + item['writer'] + '>'  + colorama.Style.RESET_ALL
 
         # color status if the work is done or continue
         stat = ''
@@ -100,7 +132,7 @@ def proc_uri(uri):
 
     colorama.deinit() # windows only
 
-ncode_default = 'api/?of=n-l-w-t-e-gl-nt-ka-ng&out=json&lim=500'
+ncode_default = 'api/?of=n-l-w-t-e-gl-nt-ka-g-ng&out=json&lim=500'
 
 r15_uri_g = 'https://api.syosetu.com/novelapi/' + ncode_default
 r18_uri_g = 'https://api.syosetu.com/novel18api/' + ncode_default
