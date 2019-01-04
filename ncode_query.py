@@ -108,7 +108,10 @@ def proc_info(data):
             stat = 'エラー'
 
         # calculate when is the last update
-        last_str = item['general_lastup'] + ' +0900'
+        # general_lastup  編集の場合は反映されません
+        # novelupdated_at 最後に小説データが更新された時刻
+        #last_str = item['general_lastup'] + ' +0900'
+        last_str = item['novelupdated_at'] + ' +0900'
     
         print('[{:3d}][{}][{}][{}][{:10,}({:3d})]{}'.format(i, ncode, stat, last_update(last_str), item['length'], item['kaiwaritu'], title))
 
@@ -132,7 +135,7 @@ def proc_uri(uri):
 
     colorama.deinit() # windows only
 
-ncode_default = 'api/?of=n-l-w-t-e-gl-nt-ka-g-ng&out=json&lim=500'
+ncode_default = 'api/?of=n-l-w-t-e-gl-nu-nt-ka-g-ng&out=json&lim=500'
 
 r15_uri_g = 'https://api.syosetu.com/novelapi/' + ncode_default
 r18_uri_g = 'https://api.syosetu.com/novel18api/' + ncode_default
