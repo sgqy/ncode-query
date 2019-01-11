@@ -15,8 +15,8 @@ def main(argc, argv):
     fs.close()
     
     if argv[2] == 's':
-        ncode_query.proc_ls_sep(ls)
+        print(ncode_query.search_file_local_order(ls))
     elif argv[2] == 'b':
-        ncode_query.proc_ls(ls)
+        print(ncode_query.search_file_remote_order(ls))
 
 main(len(sys.argv), sys.argv)

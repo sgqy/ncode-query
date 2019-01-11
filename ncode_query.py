@@ -6,21 +6,19 @@ import re
 import colorama
 import datetime
 import dateutil.parser
+import multiprocessing
+import retry_decorator
 
-def get_nocgenre(genre):
-    if genre == 1:
-        return colorama.Fore.YELLOW  + '男性' + colorama.Style.RESET_ALL
-    elif genre == 2:
-        return colorama.Fore.CYAN    + '女性' + colorama.Style.RESET_ALL
-    elif genre == 3:
-        return colorama.Fore.RED     + 'ＢＬ' + colorama.Style.RESET_ALL
-    elif genre == 4:
-        return colorama.Fore.MAGENTA + '成年' + colorama.Style.RESET_ALL
-    else:
-        return '未知'
-
-def get_genre(genre):
+def decode_genre(genre):
     periods = [
+        # nothing
+        (0, '????'),
+        # nocgenre
+        (1, colorama.Fore.YELLOW  + '男性' + colorama.Style.RESET_ALL),
+        (2, colorama.Fore.CYAN    + '女性' + colorama.Style.RESET_ALL),
+        (3, colorama.Fore.RED     + 'ＢＬ' + colorama.Style.RESET_ALL),
+        (4, colorama.Fore.MAGENTA + '成年' + colorama.Style.RESET_ALL),
+        # genre
         (101,  colorama.Fore.RED     + '　　異世界　　　' + colorama.Style.RESET_ALL),
         (102,  colorama.Fore.RED     + '　　現実世界　　' + colorama.Style.RESET_ALL),
         (201,  colorama.Fore.GREEN   + 'ハイファンタジー' + colorama.Style.RESET_ALL),
@@ -46,9 +44,9 @@ def get_genre(genre):
     for p_val, p_name in periods:
         if genre == p_val:
             return p_name
-    return '　　　　　　　　'
+    return periods[0][1]
 
-def last_update(date_str):
+def convert_date_period(date_str):
     time = dateutil.parser.parse(date_str)
     delta = datetime.datetime.now(datetime.timezone.utc) - time
     sec = int(delta.total_seconds())
@@ -66,14 +64,16 @@ def last_update(date_str):
             cnt, mod = divmod(sec, p_sec)
             return '{:2d} {}'.format(cnt, p_name)
 
-def proc_info(data):
+def parse_data(data):
     j = json.loads(data)
     if j[0]['allcount'] == 0:
-        print('[item 404]')
-        return
+        return '[404]'
+
     last = j[0]['allcount'] + 1
     if last > 501:
         last = 501
+
+    ret = ''
     for i in range(1, last):
         item = j[i]
     
@@ -82,10 +82,10 @@ def proc_info(data):
         ncode = ''
         if item.get('nocgenre'):
             ncode = colorama.Fore.YELLOW + '{:7s}'.format(item['ncode'].lower()) + colorama.Style.RESET_ALL
-            title = '[' + get_nocgenre(item['nocgenre']) + ']'
+            title = '[' + decode_genre(item['nocgenre']) + ']'
         else:
             ncode = colorama.Fore.CYAN + '{:7s}'.format(item['ncode'].lower()) + colorama.Style.RESET_ALL
-            title = '[' + get_genre(item['genre']) + ']'
+            title = '[' + decode_genre(item['genre']) + ']'
 
         # color title if it is single
         short = ''
@@ -113,27 +113,43 @@ def proc_info(data):
         #last_str = item['general_lastup'] + ' +0900'
         last_str = item['novelupdated_at'] + ' +0900'
     
-        print('[{:3d}][{}][{}][{}][{:10,}({:3d})]{}'.format(i, ncode, stat, last_update(last_str), item['length'], item['kaiwaritu'], title))
+        ret += ('[{:3d}][{}][{}][{}][{:10,}({:3d})]{}\n'.format(i, ncode, stat, convert_date_period(last_str), item['length'], item['kaiwaritu'], title))
+    return ret
 
-def proc_uri(uri):
-    colorama.init() # windows only
 
-    # the server will give EVERYTHING if empty
-    if uri.endswith('='):
-        return
-
-    try:
+@retry_decorator.retry(urllib.error.URLError, tries = 16, delay = 1, backoff = 2)
+def retrieve_data(uri):
         request = urllib.request.Request(uri, data=None, headers={})
-        resp_fd = urllib.request.urlopen(request)
+        resp_fd = urllib.request.urlopen(request, timeout=5)
         data = resp_fd.read()
         resp_fd.close()
+        return data
+
+def process_item(item):
+    if not item.startswith('http'):
+        return item + '\n'
+
+    # the server will give EVERYTHING if empty
+    if item.endswith('='):
+        return '[{0}Format{2}] {0}{1}{2}\n'.format(colorama.Fore.RED, item, colorama.Style.RESET_ALL)
+
+    try:
+        data = retrieve_data(item)
     except:
-        print('\n[ex] ' + uri)
-        exit()
+        return '[{0}Retrive{2}] {0}{1}{2}\n'.format(colorama.Fore.RED, item, colorama.Style.RESET_ALL)
 
-    proc_info(data)
+    result = parse_data(data)
+    if result == '[404]':
+        result = '[{0}Not found{2}] {0}{1}{2}\n'.format(colorama.Fore.RED, item, colorama.Style.RESET_ALL)
+    return result
 
-    colorama.deinit() # windows only
+def do_query(query):
+    ret = ''
+    with multiprocessing.Pool(32) as p:
+        r = p.map(process_item, query)
+    for s in r:
+        ret += s
+    return ret
 
 ncode_default = 'api/?of=n-l-w-t-e-gl-nu-nt-ka-g-ng&out=json&lim=500'
 
@@ -143,9 +159,9 @@ r18_uri_g = 'https://api.syosetu.com/novel18api/' + ncode_default
 r15_uri = r15_uri_g + '&ncode='
 r18_uri = r18_uri_g + '&ncode='
 
-ncode_re = '//(?P<type>.*)\.syosetu\.com/(?P<ncode>n[^/]*)/?'
+ncode_re = r'//(?P<type>.*)\.syosetu\.com/(?P<ncode>n[^/]*)/?'
 
-def proc_ls(lines):
+def search_file_remote_order(lines):
     r15 = r15_uri
     r18 = r18_uri
     for l in lines:
@@ -155,26 +171,27 @@ def proc_ls(lines):
                 r15 += m.group('ncode') + '-'
             elif m.group('type') == 'novel18':
                 r18 += m.group('ncode') + '-'
-    print('R15 novel:')
-    proc_uri(r15)
-    print('R18 novel:')
-    proc_uri(r18)
+    query = ['R15 novel:']
+    query.append(r15)
+    query.append('R18 novel:')
+    query.append(r18)
+    return do_query(query)
 
-def proc_ls_sep(lines):
+def search_file_local_order(lines):
+    query = []
     for l in lines:
         m = re.search(ncode_re, l)
         if m:
             if m.group('type') == 'ncode':
-                proc_uri(r15_uri + m.group('ncode'))
+                query.append(r15_uri + m.group('ncode'))
             elif m.group('type') == 'novel18':
-                proc_uri(r18_uri + m.group('ncode'))
-            else:
-                print(l)
+                query.append(r18_uri + m.group('ncode'))
         else:
-            print(l)
+            query.append(l)
+    return do_query(query)
 
 
-big_query_help = '''
+query_global_help = '''
 query.py <type> <order>
 
 type:
@@ -202,8 +219,9 @@ order:
   old           更新が古い順
 '''
 
-def proc_g(t, o):
-    print('R15 novel:')
-    proc_uri(r15_uri_g + '&type=' + t + '&order=' + o)
-    print('R18 novel:')
-    proc_uri(r18_uri_g + '&type=' + t + '&order=' + o)
+def search_global(type_, order):
+    query = ['R15 novel:']
+    query.append(r15_uri_g + '&type=' + type_ + '&order=' + order)
+    query.append('R18 novel:')
+    query.append(r18_uri_g + '&type=' + type_ + '&order=' + order)
+    return do_query(query)
