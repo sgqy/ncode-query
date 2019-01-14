@@ -1,13 +1,12 @@
 #!/usr/bin/env python3
 
-import urllib.request
 import json
 import re
 import colorama
 import datetime
 import dateutil.parser
 import multiprocessing
-import retry_decorator
+import fetch_data
 
 def decode_genre(genre):
     periods = [
@@ -116,15 +115,6 @@ def parse_data(data):
         ret += ('[{:3d}][{}][{}][{}][{:10,}({:3d})]{}\n'.format(i, ncode, stat, convert_date_period(last_str), item['length'], item['kaiwaritu'], title))
     return ret
 
-
-@retry_decorator.retry(urllib.error.URLError, tries = 16, delay = 1, backoff = 2)
-def retrieve_data(uri):
-        request = urllib.request.Request(uri, data=None, headers={})
-        resp_fd = urllib.request.urlopen(request, timeout=5)
-        data = resp_fd.read()
-        resp_fd.close()
-        return data
-
 def process_item(item):
     if not item.startswith('http'):
         return item + '\n'
@@ -134,7 +124,7 @@ def process_item(item):
         return '[{0}Format{2}] {0}{1}{2}\n'.format(colorama.Fore.RED, item, colorama.Style.RESET_ALL)
 
     try:
-        data = retrieve_data(item)
+        data = fetch_data.download(item)
     except:
         return '[{0}Retrive{2}] {0}{1}{2}\n'.format(colorama.Fore.RED, item, colorama.Style.RESET_ALL)
 
